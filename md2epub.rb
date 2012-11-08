@@ -95,12 +95,15 @@ class Markdown2EPUB
         @basedir = Dir.pwd
         @resourcedir = @basedir
         @assetdir = @basedir + "/assets/"
+        @contentdir = nil
         @cover = false
         @cover_image = {}
         @pages = []
+        @items = []
         @rtl_ppd = false
         @tmpdir = nil
         @debug = false
+        @rndr = ""
     end
     
     def set_dir( dir )
@@ -137,6 +140,71 @@ class Markdown2EPUB
         }
     end
 
+    def _build_bodymatter
+        rndr = @rndr
+
+        # Fetch Image Class
+        images = FetchImages.new( @tmpdir, @resourcedir )
+
+        # markdown to HTML
+        get_title = Regexp.new('^[#=] (.*)$')
+
+        Dir::glob( @resourcedir + "/*.{md,mkd,markdown}" ).each {|file|
+            # puts "#{file}: #{File::stat(file).size} bytes"
+            md = File.read( file )
+            html =""
+            
+            get_title =~ md
+            if $1 then
+                pagetitle = $1.chomp
+                md[ get_title ] = ""
+            else 
+                pagetitle = File.basename(file, ".*")
+            end
+            fname = File.basename(file, ".md") << ".xhtml"
+            page = {:pagetitle => pagetitle, :file => fname }                
+                        
+            # render markdown
+            html = rndr.render( md )
+            
+            # Fetch Images and replace src path
+            html = images.fetch( html )
+            _build_page( page, html, %Q(#{@contentdir}/#{fname}) )
+
+            @pages.push page
+        }
+
+        # textile to HTML
+        get_title = Regexp.new('^h1. (.*)$')
+
+        Dir::glob( @resourcedir + "/*.textile" ).each {|file|
+            # puts "#{file}: #{File::stat(file).size} bytes"
+            textile = File.read( file )
+            html =""
+            
+            get_title =~ textile
+            if $1 then
+                pagetitle = $1.chomp
+                md[ get_title ] = ""
+            else 
+                pagetitle = File.basename(file, ".*")
+            end
+            fname = File.basename(file, ".textile") << ".xhtml"
+            page = {:pagetitle => pagetitle, :file => fname }                
+                        
+            # render textile
+            html = RedCloth.new( textile ).to_html            
+            
+            # Fetch Images and replace src path
+            html = images.fetch( html )
+            _build_page( page, html, %Q(#{@contentdir}/#{fname}) )
+
+            @pages.push page
+        } 
+
+        # sort by filename
+        @pages.sort! {|a, b| a[:file] <=> b[:file]}      
+    end
     
     def _build_opf
         opf = ""
@@ -273,13 +341,10 @@ class Markdown2EPUB
             :tables => true,
             :xhtml => true
         ]
-        rndr = Redcarpet::Markdown.new(Redcarpet::Render::XHTML, *options )
+        @rndr = Redcarpet::Markdown.new(Redcarpet::Render::XHTML, *options )
         
         # make working directory
         @tmpdir = Dir.mktmpdir("md2epub", @basedir)
-
-        # Fetch Image Class
-        images = FetchImages.new( @tmpdir, @resourcedir )
 
         # copy Asset Files
         _copy_asset_files()
@@ -306,76 +371,22 @@ class Markdown2EPUB
         }
     
         # make HTML directory
-        contentdir = @tmpdir + "/OEBPS/text"
-        FileUtils.mkdir( contentdir )
-        
-        # markdown to HTML
-        get_title = Regexp.new('^[#=] (.*)$')
+        @contentdir = @tmpdir + "/OEBPS/text"
+        FileUtils.mkdir( @contentdir )
 
-        Dir::glob( @resourcedir + "/*.{md,mkd,markdown}" ).each {|file|
-            # puts "#{file}: #{File::stat(file).size} bytes"
-            md = File.read( file )
-            html =""
-            
-            get_title =~ md
-            if $1 then
-                pagetitle = $1.chomp
-                md[ get_title ] = ""
-            else 
-                pagetitle = File.basename(file, ".*")
-            end
-            fname = File.basename(file, ".md") << ".xhtml"
-            page = {:pagetitle => pagetitle, :file => fname }                
-                        
-            # render markdown
-            html = rndr.render( md )
-            
-            # Fetch Images and replace src path
-            html = images.fetch( html )
-            _build_page( page, html, %Q(#{contentdir}/#{fname}) )
+        # build cover page
+        _build_cover()
 
-            @pages.push page
-        }            
+        # build bodymatter
+        _build_bodymatter()
 
-        # textile to HTML
-        get_title = Regexp.new('^h1. (.*)$')
-
-        Dir::glob( @resourcedir + "/*.textile" ).each {|file|
-            # puts "#{file}: #{File::stat(file).size} bytes"
-            textile = File.read( file )
-            html =""
-            
-            get_title =~ textile
-            if $1 then
-                pagetitle = $1.chomp
-                md[ get_title ] = ""
-            else 
-                pagetitle = File.basename(file, ".*")
-            end
-            fname = File.basename(file, ".textile") << ".xhtml"
-            page = {:pagetitle => pagetitle, :file => fname }                
-                        
-            # render textile
-            html = RedCloth.new( textile ).to_html            
-            
-            # Fetch Images and replace src path
-            html = images.fetch( html )
-            _build_page( page, html, %Q(#{contentdir}/#{fname}) )
-
-            @pages.push page
-        }
-
-        # sort by filename
-        @pages.sort! {|a, b| a[:file] <=> b[:file]}
-
-        # build EPUB meta files
-        _build_opf()
+        # build navigations
         _build_toc()
         _build_ncx()
         
-        # build cover page
-        _build_cover()
-        
+         # build opf
+        _build_opf()
+
         # ZIP!
         make_epub( @tmpdir , @bookname )
         
