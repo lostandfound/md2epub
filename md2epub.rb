@@ -167,8 +167,20 @@ class Markdown2EPUB
                     f.write( html )
             }
         }
-    end    
+    end
 
+    def _build_ncx
+        html = ""
+        pages = @pages
+        erbfile = @assetdir +"toc.ncx.erb"
+
+        open(erbfile, 'r') {|erb|
+            html = ERB.new( erb.read , nil, '-').result(binding)
+            open( @tmpdir + "/OEBPS/toc.ncx", "w") {|f|
+                    f.write( html )
+            }
+        }
+    end    
     
     def _build_cover
         html = ""
@@ -330,6 +342,7 @@ class Markdown2EPUB
         # build EPUB meta files
         _build_opf()
         _build_toc()
+        _build_ncx()
         
         # build cover page
         _build_cover()
