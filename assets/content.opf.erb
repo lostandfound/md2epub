@@ -22,7 +22,9 @@
     <% end -%>
     <item id="style.epub.css" href="style/epub.css" media-type="text/css" />
   </manifest>
-  <spine toc="ncx" page-progression-direction="ltr">
+  <% if @rtl_ppd then -%>
+  <spine toc="ncx" page-progression-direction="rtl" ><% else -%>
+  <spine toc="ncx" page-progression-direction="ltr" > <% end -%> 
     <itemref idref="text.cover.xhtml" linear="yes" />
     <% pages.each do |p| %><itemref idref="text.<%= p[:file] %>" linear="yes" />
     <% end -%></spine>

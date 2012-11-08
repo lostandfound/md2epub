@@ -95,6 +95,7 @@ class Markdown2EPUB
         @resourcedir = @basedir
         @assetdir = @basedir + "/assets/"
         @pages = []
+        @rtl_ppd = false
         @tmpdir = nil
         @debug = false
     end
@@ -207,6 +208,7 @@ class Markdown2EPUB
         @lang = setting["lang"]
         @publisher = setting['publisher']
         @debug = setting['debug']
+        @rtl_ppd = setting['rtl_ppd']
         
         if setting.key?('uuid') then
             @uuid = UUIDTools::UUID.sha1_create(UUID_DNS_NAMESPACE, setting['uuid']).to_s
