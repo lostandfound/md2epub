@@ -15,6 +15,7 @@ require 'uuidtools'
 require 'erb'
 require 'redcarpet'
 require 'digest/md5'
+require 'image_size'
 require 'open-uri'
 require 'mime/types'
 require 'RedCloth'
@@ -94,6 +95,8 @@ class Markdown2EPUB
         @basedir = Dir.pwd
         @resourcedir = @basedir
         @assetdir = @basedir + "/assets/"
+        @cover = false
+        @cover_image = {}
         @pages = []
         @rtl_ppd = false
         @tmpdir = nil
@@ -142,9 +145,15 @@ class Markdown2EPUB
         
         imagelist = []        
         Dir.glob( @tmpdir + "/OEBPS/images/*" ) {|img|
+            fname = File.basename(img)
+            property = nil
+            if /cover.(jpg|jpeg|png|gif|bmp)/ =~ fname
+                property = "cover-image"
+            end
             imagelist.push({
-                :fname =>  File.basename(img),
-                :mediatype => MIME::Types.type_for(img)[0].to_s 
+                :fname =>  fname,
+                :mediatype => MIME::Types.type_for(img)[0].to_s,
+                :property => property
             })
         }
         
@@ -277,6 +286,24 @@ class Markdown2EPUB
 
         # copy Resource Images
         _copy_images()
+
+        # check cover image
+        epub_imagedir = @tmpdir + "/OEBPS/images"
+        Dir::glob( @resourcedir + "/cover.{jpg,gif,png}" ).each {|file|
+            @cover = true
+            puts "make cover page"
+            unless File.exists?( epub_imagedir ) then
+                FileUtils.makedirs( epub_imagedir )
+            end
+            FileUtils.cp(file, epub_imagedir)
+            @cover_image[:file] = File.basename( file )
+
+            open(file,"rb") do |fh|
+                size = ImageSize.new(fh.read).get_size
+                @cover_image[:width] = size[0]
+                @cover_image[:height] = size[1]
+            end
+        }
     
         # make HTML directory
         contentdir = @tmpdir + "/OEBPS/text"
@@ -356,7 +383,7 @@ class Markdown2EPUB
         unless @debug then
             FileUtils.remove_entry_secure(@tmpdir)
         end
-                
+
     end   
 end
 

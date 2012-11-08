@@ -11,16 +11,15 @@
     <meta refines="#contributor0" property="role">bkp</meta>
     <dc:publisher id="publisher0"><%= @publisher %></dc:publisher>
     <meta property="dcterms:modified"><%= @pubdate %></meta>
+    <% if @cover then -%><meta name="cover" content="cover-image" /><% end -%>
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
     <item id="nav" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav" />
-    <item id="text.cover.xhtml" href="text/cover.xhtml" media-type="application/xhtml+xml" />
-    <% pages.each do |p| %><item id="text.<%= p[:file] %>" href="text/<%= p[:file] %>" media-type="application/xhtml+xml" />
-    <% end -%>
-    <% imagelist.each do |img| %><item id="images.<%= img[:fname] %>" href="images/<%= img[:fname] %>" media-type="<%= img[:mediatype] %>" />
-    <% end -%>
-    <item id="style.epub.css" href="style/epub.css" media-type="text/css" />
+    <% if @cover then -%><item id="text.cover.xhtml" href="text/cover.xhtml" media-type="application/xhtml+xml" properties="svg" /><% else -%><item id="text.cover.xhtml" href="text/cover.xhtml" media-type="application/xhtml+xml" /><% end -%>
+    <% pages.each do |p| %><item id="text.<%= p[:file] %>" href="text/<%= p[:file] %>" media-type="application/xhtml+xml" /><% end -%>
+    <% imagelist.each do |img| %><item <% if img[:property] == 'cover-image' then -%>id="cover-image"<% else -%>id="images.<%= img[:fname] %>"<% end -%> href="images/<%= img[:fname] %>" media-type="<%= img[:mediatype] %>" <% if img[:property] then -%>properties="<%= img[:property] %>"<% end -%>/>
+    <% end -%><item id="style.epub.css" href="style/epub.css" media-type="text/css" />
   </manifest>
   <% if @rtl_ppd then -%>
   <spine toc="ncx" page-progression-direction="rtl" ><% else -%>
